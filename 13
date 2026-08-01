@@ -1,0 +1,48 @@
+import { supabase } from "./supabaseClient";
+
+export async function loadKey(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+export async function saveKey(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {}
+}
+
+export const genId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+
+const TABLE = "leaderboard";
+
+export async function pushLeaderboardEntry(userId, entry) {
+  if (!supabase) return;
+  await supabase.from(TABLE).upsert({
+    id: userId,
+    name: entry.name,
+    xp: entry.xp,
+    level: entry.level,
+    workouts: entry.workouts,
+    photo: entry.photo,
+    status: entry.status,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+export async function fetchLeaderboard() {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("*")
+    .order("xp", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return (data || []).map((row) => ({
+    id: row.id, name: row.name, xp: row.xp, level: row.level,
+    workouts: row.workouts, photo: row.photo, status: row.status,
+  }));
+}
